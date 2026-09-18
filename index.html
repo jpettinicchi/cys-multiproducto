@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario Multiproducto — C&amp;S Agro</title>
+<style>
+  :root{
+    --navy:#1F4E78; --navy-dark:#163A5C; --navy-light:#D9E2F3;
+    --paper:#F3F1EC; --ink:#22282E; --ink-soft:#5B6572; --line:#C9D2DD;
+    --amber:#B8860B; --amber-bg:#FBF2DD;
+    --ok:#2E7D4F; --ok-bg:#E4F3E9; --alert:#B3392A; --alert-bg:#FBEAE7;
+    --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+    --sans:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); line-height:1.45;
+    background-image:linear-gradient(var(--line) 1px, transparent 1px),linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:28px 28px; background-position:-1px -1px; background-attachment:local; }
+  header{ background:var(--navy); color:#fff; padding:22px 32px; display:flex; align-items:baseline;
+    justify-content:space-between; flex-wrap:wrap; gap:8px; border-bottom:4px solid var(--navy-dark); }
+  header h1{ margin:0; font-size:1.25rem; font-weight:700; }
+  header .sub{ font-size:.82rem; color:#C9D9EC; font-family:var(--mono); }
+  main{ max-width:1220px; margin:0 auto; padding:24px 20px 60px; }
+
+  .conn-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-family:var(--mono);
+    font-size:.76rem; padding:8px 14px; margin-bottom:18px; border:1px solid var(--line); background:#fff; flex-wrap:wrap; }
+  .conn-banner .left{ display:flex; align-items:center; gap:10px; }
+  .conn-banner .dot{ width:8px; height:8px; border-radius:50%; background:var(--ink-soft); flex:none; }
+  .conn-banner.ok .dot{ background:var(--ok); } .conn-banner.ok{ color:var(--ok); border-color:var(--ok); background:var(--ok-bg); }
+  .conn-banner.wait .dot{ background:var(--amber); } .conn-banner.wait{ color:var(--amber); border-color:var(--amber); background:var(--amber-bg); }
+  .conn-banner.err .dot{ background:var(--alert); } .conn-banner.err{ color:var(--alert); border-color:var(--alert); background:var(--alert-bg); }
+  .btn{ font-family:var(--mono); font-size:.76rem; padding:6px 14px; border:1px solid var(--navy); background:var(--navy);
+    color:#fff; cursor:pointer; }
+  .btn:hover{ background:var(--navy-dark); }
+  .btn:disabled{ opacity:.5; cursor:default; }
+
+  section{ background:#fff; border:1px solid var(--line); margin-bottom:22px; }
+  section > h2{ margin:0; padding:12px 16px; font-size:.85rem; font-weight:700; background:var(--navy-light);
+    color:var(--navy-dark); border-bottom:1px solid var(--line); text-transform:uppercase; letter-spacing:.05em; }
+  .section-body{ padding:18px 16px; }
+  .hint{ font-size:.8rem; color:var(--ink-soft); margin:0 0 14px; }
+
+  .controls{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 20px; }
+  .controls label{ display:block; font-size:.75rem; color:var(--ink-soft); margin-bottom:4px; }
+  .controls input{ width:100%; padding:6px 8px; border:1px solid var(--line); font-family:var(--mono); font-size:.9rem; background:#FBFBF9; }
+
+  table{ width:100%; border-collapse:collapse; font-size:.82rem; }
+  thead th{ text-align:left; padding:8px 9px; background:var(--navy); color:#fff; font-weight:600;
+    font-size:.7rem; text-transform:uppercase; letter-spacing:.03em; }
+  tbody td{ padding:7px 9px; border-bottom:1px solid var(--line); }
+  tbody tr:nth-child(even){ background:#FAFAF7; }
+  td.num, th.num{ text-align:right; font-family:var(--mono); }
+  td input{ width:60px; padding:3px 5px; border:1px solid var(--line); font-family:var(--mono); font-size:.8rem; text-align:right; background:#FBFBF9; }
+  td input.wide{ width:120px; }
+  .tag{ display:inline-block; font-size:.66rem; padding:1px 7px; border-radius:2px; font-weight:600; }
+  .tag.ok{ background:var(--ok-bg); color:var(--ok); }
+  .tag.alert{ background:var(--alert-bg); color:var(--alert); }
+  .tag.off{ background:#EEE; color:#888; }
+  tr.row-ok{ box-shadow: inset 3px 0 0 var(--ok); }
+  tr.row-alert{ box-shadow: inset 3px 0 0 var(--alert); }
+
+  .gantt{ padding:6px 16px 16px; overflow-x:auto; }
+  .gantt-row{ display:grid; grid-template-columns:170px 1fr; align-items:center; gap:12px; padding:7px 0; border-bottom:1px dashed var(--line); }
+  .gantt-row:last-child{ border-bottom:none; }
+  .gantt-track{ position:relative; height:20px; background:#F0EFEA; }
+  .gantt-bar{ position:absolute; top:0; bottom:0; background:var(--navy); }
+  .gantt-bar.alert{ background:var(--alert); }
+  .gantt-bar .tip{ position:absolute; top:-19px; left:0; font-family:var(--mono); font-size:.66rem; color:var(--ink-soft); white-space:nowrap; }
+
+  footer{ max-width:1220px; margin:0 auto; padding:0 20px 50px; font-size:.78rem; color:var(--ink-soft); }
+  footer p{ max-width:82ch; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Calendario Multiproducto — C&amp;S Agro</h1>
+    <div class="sub">6 modelos, capacidad compartida, cola por prioridad — en vivo</div>
+  </div>
+  <div class="sub" id="hdr-status">calculando…</div>
+</header>
+
+<main>
+  <div class="conn-banner" id="conn-banner">
+    <span class="left"><span class="dot"></span><span id="conn-text">conectando con Supabase…</span></span>
+    <button class="btn" id="btn-sync">Sincronizar desde Excel</button>
+  </div>
+
+  <section>
+    <h2>Parámetros globales</h2>
+    <div class="section-body controls">
+      <div><label for="in-fecha-inicio">Fecha de inicio de planificación (compartida)</label><input type="date" id="in-fecha-inicio"></div>
+      <div><label for="in-turno">Horas por turno estándar</label><input type="number" id="in-turno" step="0.5" min="1"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Capacidad por etapa — compartida entre los 6 modelos</h2>
+    <div class="section-body" style="overflow-x:auto;">
+      <p class="hint">Operarios, turnos y % horas extra son editables por cualquiera — el cambio se guarda en Supabase y todos los que tengan esta página abierta lo ven al instante.</p>
+      <table>
+        <thead><tr><th>Etapa</th><th class="num">Operarios</th><th class="num">Turnos</th><th class="num">% Horas extra</th><th class="num">Capacidad efectiva (hs/día)</th></tr></thead>
+        <tbody id="cap-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Plan comercial — un pedido por modelo</h2>
+    <div class="section-body" style="overflow-x:auto;">
+      <p class="hint">Cantidad, fecha límite y prioridad son editables y compartidas en vivo. "Cant. base" y las horas por etapa vienen del Excel — se actualizan con el botón "Sincronizar desde Excel".</p>
+      <table>
+        <thead><tr><th>Modelo</th><th class="num">Cant. base</th><th class="num">Cant. a producir</th><th>Fecha límite</th><th class="num">Prioridad</th><th>Fecha fin estimada</th><th class="num">Margen (d.h.)</th><th>Estado</th></tr></thead>
+        <tbody id="modelos-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Vista de línea (span por modelo)</h2>
+    <div class="gantt" id="gantt"></div>
+  </section>
+</main>
+
+<footer>
+  <p><strong>Cómo leer esto:</strong> esta página lee y escribe en vivo contra una base Supabase compartida — cualquier
+  cambio de Operarios, Turnos, Cantidad o Prioridad que haga cualquiera se ve reflejado al instante en todas las
+  pantallas que tengan esta página abierta. El botón "Sincronizar desde Excel" vuelve a leer el Google Sheet y
+  actualiza Cant. base y las horas por etapa de cada modelo.</p>
+</footer>
+
+<script type="module">
+// ---------------------------------------------------------------
+// CONFIGURACIÓN — completar con los datos de tu proyecto Supabase (Fase 1)
+// ---------------------------------------------------------------
+const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
+const SUPABASE_ANON_KEY = "TU-ANON-KEY";
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ETAPA_NOMBRES = ["CORTE SIERRA / CORTE ROTOLASER","CORTE LASER >>> PLEGADO","MECANIZADOS",
+  "AGUJEREADOS / ROSCADOS","SOLDADURA","PINTURA","ENSAMBLE"];
+
+let MODELOS = [];   // se llena desde Supabase
+let CAPACIDAD = []; // se llena desde Supabase
+const state = { fechaInicio: addDays(new Date(), 5), horasTurno: 8 };
+
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function isWeekend(d){ const g=d.getDay(); return g===0||g===6; }
+function workday(start, delta){
+  let d=new Date(start); let rem=Math.abs(delta); const step=delta>=0?1:-1;
+  while(rem>0){ d=addDays(d,step); if(!isWeekend(d)) rem--; }
+  return d;
+}
+function networkdays(start,end){
+  const sign = end<start?-1:1; let a=sign===1?start:end, b=sign===1?end:start, c=0, d=new Date(a);
+  while(d<=b){ if(!isWeekend(d)) c++; d=addDays(d,1); }
+  return sign*c;
+}
+function iso(d){ return d.toISOString().slice(0,10); }
+function fmt(d){ return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function setBanner(mode, text){
+  const b = document.getElementById('conn-banner');
+  b.className = 'conn-banner ' + mode;
+  document.getElementById('conn-text').textContent = text;
+}
+
+// ---------------------------------------------------------------
+// CARGA + REALTIME
+// ---------------------------------------------------------------
+async function cargarEstado(){
+  try{
+    const [{ data: modelosRows, error: e1 }, { data: tbRows, error: e2 }, { data: capRows, error: e3 }] =
+      await Promise.all([
+        supabase.from('modelos').select('*').order('prioridad'),
+        supabase.from('tiempos_base').select('*'),
+        supabase.from('capacidad').select('*').order('orden_etapa'),
+      ]);
+    if(e1 || e2 || e3) throw (e1 || e2 || e3);
+
+    MODELOS = (modelosRows||[]).map(m=>{
+      const horasBase = new Array(7).fill(0);
+      const sinDatos = new Array(7).fill(true);
+      (tbRows||[]).filter(r=>r.modelo===m.nombre).forEach(r=>{
+        horasBase[r.orden_etapa-1] = r.horas_base;
+        sinDatos[r.orden_etapa-1] = !r.horas_base;
+      });
+      return { nombre:m.nombre, cantBase:m.cant_base, cantidad:m.cantidad,
+               fechaLimite:new Date(m.fecha_limite+'T00:00:00'), prioridad:m.prioridad,
+               horasBase, sinDatos };
+    });
+    CAPACIDAD = (capRows||[]).map(c=>({ nombre:c.etapa, operarios:c.operarios, turnos:c.turnos, horasExtraPct:Number(c.horas_extra_pct) }));
+
+    if(MODELOS.length===0){
+      setBanner('wait','conectado, pero las tablas están vacías — corré "Sincronizar desde Excel"');
+    } else {
+      setBanner('ok','conectado a Supabase — en vivo');
+    }
+    render();
+  } catch(err){
+    setBanner('err', 'error leyendo Supabase: ' + (err.message||err));
+    console.error(err);
+  }
+}
+
+supabase.channel('cambios-multiproducto')
+  .on('postgres_changes', { event:'*', schema:'public', table:'modelos' }, cargarEstado)
+  .on('postgres_changes', { event:'*', schema:'public', table:'capacidad' }, cargarEstado)
+  .on('postgres_changes', { event:'*', schema:'public', table:'tiempos_base' }, cargarEstado)
+  .subscribe();
+
+document.getElementById('btn-sync').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-sync');
+  btn.disabled = true; btn.textContent = 'Sincronizando…';
+  try{
+    const res = await fetch('/api/sync');
+    const json = await res.json();
+    if(!res.ok) throw new Error(json.error || 'error desconocido');
+    setBanner('ok', 'sincronizado ' + new Date().toLocaleTimeString('es-AR'));
+  } catch(err){
+    setBanner('err', 'error al sincronizar: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sincronizar desde Excel';
+  }
+});
+
+// ---------------------------------------------------------------
+// ESCRITURA — cualquier edición se guarda en Supabase (y vuelve por realtime)
+// ---------------------------------------------------------------
+async function actualizarModelo(nombre, campo, valor){
+  const { error } = await supabase.from('modelos').update({ [campo]: valor }).eq('nombre', nombre);
+  if(error) setBanner('err', 'no se pudo guardar: ' + error.message);
+}
+async function actualizarCapacidad(etapaNombre, campo, valor){
+  const { error } = await supabase.from('capacidad').update({ [campo]: valor }).eq('etapa', etapaNombre);
+  if(error) setBanner('err', 'no se pudo guardar: ' + error.message);
+}
+
+// ---------------------------------------------------------------
+// COMPUTE — simulacion unidad por unidad, cola compartida (igual que antes)
+// ---------------------------------------------------------------
+function capacidadEfectiva(etapaIdx){
+  const c = CAPACIDAD[etapaIdx];
+  if(!c) return 1;
+  return c.operarios * c.turnos * state.horasTurno * (1 + c.horasExtraPct);
+}
+
+function compute(){
+  const activos = [...MODELOS].sort((a,b)=>a.prioridad-b.prioridad);
+  const unidades = [];
+  activos.forEach(m=>{
+    for(let n=1;n<=m.cantidad;n++){
+      const p = ETAPA_NOMBRES.map((_,e)=>{
+        const horasPorUnidad = m.horasBase[e]/(m.cantBase||1);
+        return Math.max(0, Math.ceil(horasPorUnidad / capacidadEfectiva(e)));
+      });
+      unidades.push({ modelo:m.nombre, nro:n, p, completion:new Array(7).fill(0) });
+    }
+  });
+  unidades.forEach((u,k)=>{
+    for(let e=0;e<7;e++){
+      let above = k>0 ? unidades[k-1].completion[e] : 0;
+      let left = e>0 ? u.completion[e-1] : 0;
+      if(k===0 && e===0) u.completion[e] = u.p[e];
+      else if(k===0) u.completion[e] = left + u.p[e];
+      else if(e===0) u.completion[e] = above + u.p[e];
+      else u.completion[e] = Math.max(above, left) + u.p[e];
+    }
+  });
+  const resumenPorModelo = {};
+  MODELOS.forEach(m=>{
+    const unidadesModelo = unidades.filter(u=>u.modelo===m.nombre);
+    if(unidadesModelo.length===0){ resumenPorModelo[m.nombre] = { sinUnidades:true }; return; }
+    const ultima = unidadesModelo[unidadesModelo.length-1];
+    const finDias = ultima.completion[6];
+    const fechaFin = workday(state.fechaInicio, finDias-1);
+    const margen = networkdays(fechaFin, m.fechaLimite) - 1;
+    resumenPorModelo[m.nombre] = { sinUnidades:false, fechaFin, margen,
+      primerUnidadIdx: unidades.indexOf(unidadesModelo[0]) };
+  });
+  return { unidades, resumenPorModelo };
+}
+
+// ---------------------------------------------------------------
+// RENDER
+// ---------------------------------------------------------------
+function render(){
+  if(MODELOS.length===0 || CAPACIDAD.length===0) return;
+  const { unidades, resumenPorModelo } = compute();
+
+  const anyAlert = MODELOS.some(m=>{ const r=resumenPorModelo[m.nombre]; return r && !r.sinUnidades && r.margen<0; });
+  document.getElementById('hdr-status').textContent = anyAlert ? 'hay modelos con alerta' : 'todos los modelos en horario';
+
+  const capBody = document.getElementById('cap-body');
+  capBody.innerHTML = CAPACIDAD.map((c,i)=>`
+    <tr>
+      <td>${c.nombre}</td>
+      <td class="num"><input type="number" data-etapa="${c.nombre}" data-field="operarios" value="${c.operarios}" min="1" step="1"></td>
+      <td class="num"><input type="number" data-etapa="${c.nombre}" data-field="turnos" value="${c.turnos}" min="1" max="3" step="1"></td>
+      <td class="num"><input type="number" data-etapa="${c.nombre}" data-field="horas_extra_pct" value="${Math.round(c.horasExtraPct*100)}" min="0" max="100" step="5"></td>
+      <td class="num">${capacidadEfectiva(i).toFixed(1)}</td>
+    </tr>`).join('');
+  capBody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const etapa = e.target.dataset.etapa, field = e.target.dataset.field;
+      let val = parseFloat(e.target.value);
+      if(isNaN(val)) return;
+      if(field==='horas_extra_pct') val = val/100;
+      actualizarCapacidad(etapa, field, val);
+    });
+  });
+
+  const modBody = document.getElementById('modelos-body');
+  modBody.innerHTML = MODELOS.map((m)=>{
+    const r = resumenPorModelo[m.nombre];
+    let finTxt, margenTxt, estadoTxt, rowClass='';
+    if(r.sinUnidades){
+      finTxt='—'; margenTxt='—'; estadoTxt=`<span class="tag off">sin unidades</span>`;
+    } else {
+      finTxt = fmt(r.fechaFin); margenTxt = r.margen;
+      const ok = r.margen>=0; rowClass = ok?'row-ok':'row-alert';
+      estadoTxt = ok ? `<span class="tag ok">OK · ${r.margen} d.h.</span>` : `<span class="tag alert">ALERTA · ${Math.abs(r.margen)} d.h.</span>`;
+    }
+    return `<tr class="${rowClass}">
+      <td>${m.nombre}</td>
+      <td class="num">${m.cantBase}</td>
+      <td class="num"><input type="number" data-nombre="${m.nombre}" data-field="cantidad" value="${m.cantidad}" min="0" step="1"></td>
+      <td><input type="date" class="wide" data-nombre="${m.nombre}" data-field="fecha_limite" value="${iso(m.fechaLimite)}"></td>
+      <td class="num"><input type="number" data-nombre="${m.nombre}" data-field="prioridad" value="${m.prioridad}" min="1" max="${MODELOS.length}" step="1"></td>
+      <td>${finTxt}</td><td class="num">${margenTxt}</td><td>${estadoTxt}</td>
+    </tr>`;
+  }).join('');
+  modBody.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', e=>{
+      const nombre = e.target.dataset.nombre, field = e.target.dataset.field;
+      const val = field==='fecha_limite' ? e.target.value : parseFloat(e.target.value);
+      if(field!=='fecha_limite' && isNaN(val)) return;
+      actualizarModelo(nombre, field, val);
+    });
+  });
+
+  const axisStart = state.fechaInicio;
+  let axisEnd = axisStart;
+  MODELOS.forEach(m=>{ const r=resumenPorModelo[m.nombre]; if(!r.sinUnidades && r.fechaFin>axisEnd) axisEnd=r.fechaFin; });
+  const totalMs = Math.max(1, axisEnd-axisStart);
+  const gantt = document.getElementById('gantt');
+  gantt.innerHTML = MODELOS.map(m=>{
+    const r = resumenPorModelo[m.nombre];
+    if(r.sinUnidades) return `<div class="gantt-row"><div>${m.nombre}</div><div class="gantt-track"></div></div>`;
+    const primera = unidades[r.primerUnidadIdx];
+    const inicioReal = workday(state.fechaInicio, Math.max(0, primera.completion[0]-primera.p[0]));
+    const left = ((inicioReal-axisStart)/totalMs)*100;
+    const width = Math.max(0.6, ((r.fechaFin-inicioReal)/totalMs)*100);
+    const alert = r.margen<0;
+    return `<div class="gantt-row">
+      <div>${m.nombre}</div>
+      <div class="gantt-track"><div class="gantt-bar ${alert?'alert':''}" style="left:${left}%; width:${width}%;">
+        <span class="tip">${fmt(inicioReal)} → ${fmt(r.fechaFin)}</span></div></div>
+    </div>`;
+  }).join('');
+}
+
+function bindGlobalControls(){
+  const fi = document.getElementById('in-fecha-inicio');
+  const tu = document.getElementById('in-turno');
+  fi.value = iso(state.fechaInicio); tu.value = state.horasTurno;
+  fi.addEventListener('input', ()=>{ if(fi.value){ state.fechaInicio=new Date(fi.value+'T00:00:00'); render(); }});
+  tu.addEventListener('input', ()=>{ const v=parseFloat(tu.value); if(!isNaN(v)&&v>0){ state.horasTurno=v; render(); }});
+}
+
+bindGlobalControls();
+cargarEstado();
+</script>
+</body>
+</html>
