@@ -171,7 +171,7 @@ function setBanner(mode, text){
 // ---------------------------------------------------------------
 // CARGA + REALTIME
 // ---------------------------------------------------------------
-async function cargarEstado(){
+async function cargarEstado(fromRealtime){
   try{
     const [{ data: modelosRows, error: e1 }, { data: tbRows, error: e2 }, { data: capRows, error: e3 }] =
       await Promise.all([
@@ -194,10 +194,14 @@ async function cargarEstado(){
     });
     CAPACIDAD = (capRows||[]).map(c=>({ nombre:c.etapa, operarios:c.operarios, turnos:c.turnos, horasExtraPct:Number(c.horas_extra_pct) }));
 
-    if(MODELOS.length===0){
-      setBanner('wait','conectado, pero las tablas están vacías — corré "Sincronizar desde Excel"');
-    } else {
-      setBanner('ok','conectado a Supabase — en vivo');
+    // No pisamos el banner en una recarga disparada por Realtime (por ejemplo, justo
+    // después de tocar "Sincronizar") — así el mensaje de resultado del sync se puede leer.
+    if(!fromRealtime){
+      if(MODELOS.length===0){
+        setBanner('wait','conectado, pero las tablas están vacías — corré "Sincronizar desde Excel"');
+      } else {
+        setBanner('ok','conectado a Supabase — en vivo');
+      }
     }
     render();
   } catch(err){
@@ -207,9 +211,9 @@ async function cargarEstado(){
 }
 
 supabase.channel('cambios-multiproducto')
-  .on('postgres_changes', { event:'*', schema:'public', table:'modelos' }, cargarEstado)
-  .on('postgres_changes', { event:'*', schema:'public', table:'capacidad' }, cargarEstado)
-  .on('postgres_changes', { event:'*', schema:'public', table:'tiempos_base' }, cargarEstado)
+  .on('postgres_changes', { event:'*', schema:'public', table:'modelos' }, ()=>cargarEstado(true))
+  .on('postgres_changes', { event:'*', schema:'public', table:'capacidad' }, ()=>cargarEstado(true))
+  .on('postgres_changes', { event:'*', schema:'public', table:'tiempos_base' }, ()=>cargarEstado(true))
   .subscribe();
 
 document.getElementById('btn-sync').addEventListener('click', async ()=>{
