@@ -223,6 +223,7 @@ document.getElementById('btn-sync').addEventListener('click', async ()=>{
     const res = await fetch('/api/sync');
     const json = await res.json();
     if(!res.ok) throw new Error(json.error || 'error desconocido');
+    await cargarEstado(true); // refresco directo — no dependemos solo de Realtime
     setBanner('ok', 'sincronizado ' + new Date().toLocaleTimeString('es-AR'));
   } catch(err){
     setBanner('err', 'error al sincronizar: ' + err.message);
