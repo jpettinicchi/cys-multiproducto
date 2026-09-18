@@ -27,20 +27,9 @@ module.exports = async (req, res) => {
       return JSON.parse(match[0]).table.rows;
     }
 
-    // ---- Tiempos_Base: siempre se pisa entero, no es editable en la página ----
-    const filasTB = await leerHoja('Tiempos_Base', 'B3:E44');
-    const tiemposBase = filasTB
-      .filter(r => r.c[0]?.v)
-      .map(r => ({
-        modelo: r.c[0].v,
-        orden_etapa: r.c[1].v,
-        etapa: r.c[2].v,
-        horas_base: r.c[3]?.v || 0,
-      }));
-    const { error: errTB } = await supabase.from('tiempos_base').upsert(tiemposBase, { onConflict: 'modelo,orden_etapa' });
-    if (errTB) throw errTB;
-
     // ---- Plan_Comercial: cant_base siempre se actualiza; el resto solo si el modelo es nuevo ----
+    // (va PRIMERO: tiempos_base tiene una foreign key a modelos, así que los modelos
+    // tienen que existir antes de poder insertar sus horas por etapa)
     const filasPC = await leerHoja('Plan_Comercial', 'B6:F11');
     const { data: existentes } = await supabase.from('modelos').select('nombre');
     const nombresExistentes = new Set((existentes || []).map(m => m.nombre));
@@ -70,6 +59,20 @@ module.exports = async (req, res) => {
       const { error } = await supabase.from('modelos').update({ cant_base: m.cant_base }).eq('nombre', m.nombre);
       if (error) throw error;
     }
+
+    // ---- Tiempos_Base: siempre se pisa entero, no es editable en la página ----
+    // (va DESPUÉS de modelos, por la foreign key)
+    const filasTB = await leerHoja('Tiempos_Base', 'B3:E44');
+    const tiemposBase = filasTB
+      .filter(r => r.c[0]?.v)
+      .map(r => ({
+        modelo: r.c[0].v,
+        orden_etapa: r.c[1].v,
+        etapa: r.c[2].v,
+        horas_base: r.c[3]?.v || 0,
+      }));
+    const { error: errTB } = await supabase.from('tiempos_base').upsert(tiemposBase, { onConflict: 'modelo,orden_etapa' });
+    if (errTB) throw errTB;
 
     // ---- Capacidad: se siembra una sola vez (si la tabla está vacía); después es 100% editable en la página ----
     const { data: capExistente } = await supabase.from('capacidad').select('orden_etapa');
