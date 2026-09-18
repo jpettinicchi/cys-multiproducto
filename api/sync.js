@@ -10,6 +10,24 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+// Google Sheets (gviz) devuelve las fechas como texto tipo "Date(2026,9,15)" —
+// hay que parsearlo a mano, un Date() común no lo entiende.
+function gvizFechaAISO(v) {
+  if (v == null) return null;
+  if (typeof v === 'string') {
+    const m = v.match(/Date\((\d+),(\d+),(\d+)/);
+    if (m) {
+      const anio = Number(m[1]), mes = Number(m[2]), dia = Number(m[3]);
+      const mm = String(mes + 1).padStart(2, '0'); // el mes de gviz viene 0-indexado
+      const dd = String(dia).padStart(2, '0');
+      return `${anio}-${mm}-${dd}`;
+    }
+  }
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 module.exports = async (req, res) => {
   try {
     const supabase = createClient(
@@ -46,7 +64,7 @@ module.exports = async (req, res) => {
           nombre,
           cant_base,
           cantidad: r.c[2]?.v || 0,
-          fecha_limite: r.c[3]?.v ? new Date(r.c[3].v).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+          fecha_limite: gvizFechaAISO(r.c[3]?.v) || new Date().toISOString().slice(0, 10),
           prioridad: r.c[4]?.v || 99,
         });
       }
